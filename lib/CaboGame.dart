@@ -4,6 +4,7 @@ import 'Player.dart';
 import 'PlayingCard.dart';
 
 enum GamePhase { dealing, playing, roundEnd, gameOver }
+enum PlayerAction { none, drewFromDeck, drewFromDiscard }
 
 class CaboGame {
   List<Player> players = [];
@@ -61,6 +62,26 @@ class CaboGame {
     }
   }
 
+// Game action methods will be added here
+
+  PlayerAction lastAction = PlayerAction.none;
+  PlayingCard? drawnCard;
+
+  // Add this method to draw from discard
+  PlayingCard? drawFromDiscard() {
+    if (discardPile.isEmpty) return null;
+
+    drawnCard = discardPile.removeLast();
+    if (discardPile.isNotEmpty) {
+      topDiscard = discardPile.last;
+    } else {
+      topDiscard = null;
+    }
+    lastAction = PlayerAction.drewFromDiscard;
+    return drawnCard;
+  }
+
+  // Modify drawCard method to track state
   PlayingCard drawCard() {
     if (deck.isEmpty) {
       // Reshuffle discard pile except top card if deck is empty
@@ -69,12 +90,45 @@ class CaboGame {
       discardPile = [top];
       deck.shuffle(Random());
     }
-    return deck.removeAt(0);
+
+    drawnCard = deck.removeAt(0);
+    lastAction = PlayerAction.drewFromDeck;
+    return drawnCard!;
+  }
+
+  // Add method to play drawn card
+  void playDrawnCard(int handIndex) {
+    if (drawnCard == null) return;
+
+    // Replace the card at the specified index with the drawn card
+    PlayingCard oldCard = players[currentPlayerIndex].hand[handIndex];
+    players[currentPlayerIndex].hand[handIndex] = drawnCard!;
+
+    // Add the replaced card to the discard pile
+    discardPile.add(oldCard);
+    topDiscard = oldCard;
+
+    drawnCard = null;
+    lastAction = PlayerAction.none;
+  }
+
+  // Add method to discard drawn card
+  void discardDrawnCard() {
+    if (drawnCard == null) return;
+
+    // Add the drawn card to the discard pile
+    discardPile.add(drawnCard!);
+    topDiscard = drawnCard!;
+
+    drawnCard = null;
+    lastAction = PlayerAction.none;
   }
 
   void nextPlayer() {
+    // Reset state before changing players
+    drawnCard = null;
+    lastAction = PlayerAction.none;
     currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
   }
 
-// Game action methods will be added here
 }

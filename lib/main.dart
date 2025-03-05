@@ -92,11 +92,25 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildCard(PlayingCard card) {
+    bool isInCurrentPlayerHand = false;
+    int? cardIndex;
+
+    // Check if this card belongs to the current player
+    if (game.players[game.currentPlayerIndex].hand.contains(card)) {
+      isInCurrentPlayerHand = true;
+      cardIndex = game.players[game.currentPlayerIndex].hand.indexOf(card);
+    }
+
     return GestureDetector(
       onTap: () {
         setState(() {
-          // For demonstration, flip the card when tapped
-          card.isFaceUp = !card.isFaceUp;
+          if (game.drawnCard != null && isInCurrentPlayerHand) {
+            // Replace this card with the drawn card
+            game.playDrawnCard(cardIndex!);
+          } else if (isInCurrentPlayerHand) {
+            // Flip the card
+            card.isFaceUp = !card.isFaceUp;
+          }
         });
       },
       child: Container(
@@ -106,21 +120,26 @@ class _GameScreenState extends State<GameScreen> {
         decoration: BoxDecoration(
           color: card.isFaceUp ? Colors.white : Colors.blue,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.black),
+          border: Border.all(
+            color: game.drawnCard != null && isInCurrentPlayerHand
+                ? Colors.yellow
+                : Colors.black,
+            width: game.drawnCard != null && isInCurrentPlayerHand ? 2 : 1,
+          ),
         ),
         child: card.isFaceUp
             ? Center(
-          child: Text(
-            '${card.value}\n${card.suit[0]}',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: card.suit == 'Hearts' || card.suit == 'Diamonds'
-                  ? Colors.red
-                  : Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        )
+                child: Text(
+                  '${card.value}\n${card.suit[0]}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: card.suit == 'Hearts' || card.suit == 'Diamonds'
+                        ? Colors.red
+                        : Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
             : null,
       ),
     );
@@ -161,21 +180,48 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildDiscardPile() {
-    return game.topDiscard != null
-        ? _buildCard(game.topDiscard!)
-        : Container(
-      height: 100,
-      width: 70,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black),
-      ),
-      child: const Center(
-        child: Text(
-          'DISCARD',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        // Only allow drawing if it's the start of the player's turn
+        if (game.lastAction == PlayerAction.none && game.topDiscard != null) {
+          setState(() {
+            PlayingCard? drawnCard = game.drawFromDiscard();
+            if (drawnCard != null) {
+              drawnCard.isFaceUp = true; // Show the card to the player
+              // The card remains in the game's drawnCard field until played or discarded
+            }
+          });
+        }
+      },
+      child: game.topDiscard != null
+          ? Stack(
+        children: [
+          _buildCard(game.topDiscard!),
+          if (game.lastAction == PlayerAction.none)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.yellow.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+        ],
+      )
+          : Container(
+        height: 100,
+        width: 70,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.black),
+        ),
+        child: const Center(
+          child: Text(
+            'DISCARD',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -194,9 +240,17 @@ class _GameScreenState extends State<GameScreen> {
             },
             child: const Text('Call Cabo'),
           ),
+          if (game.drawnCard != null)
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  game.discardDrawnCard();
+                });
+              },
+              child: const Text('Discard Card'),
+            ),
           ElevatedButton(
-            onPressed: () {
-              // End turn
+            onPressed: game.drawnCard != null ? null : () {
               setState(() {
                 game.nextPlayer();
               });
