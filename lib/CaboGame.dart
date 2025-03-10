@@ -5,7 +5,7 @@ import 'PlayingCard.dart';
 
 enum GamePhase { dealing, playing, roundEnd, gameOver }
 enum PlayerAction { none, drewFromDeck, drewFromDiscard }
-enum SpecialAction { none, peek, swap, drawTwo }
+enum SpecialAction { none, peek, swap, drawTwo, peekOwn, peekOpponent }
 
 class CaboGame {
   List<Player> players = [];
@@ -20,7 +20,9 @@ class CaboGame {
   int roundNumber = 1;
   int lastRoundPlayerIndex = -1;
   int caboCallerIndex = -1;
+
   bool isLastRound = false;
+  String statusMessage = "";
 
   CaboGame() {
     initializeGame();
@@ -119,14 +121,8 @@ class CaboGame {
   }
 
   void checkSpecialCardAbilities(PlayingCard card) {
-    // In Cabo, special cards have special abilities
-    if (card.value == 7 || card.value == 8) {
-      // Look at one of your cards
-      pendingSpecialAction = SpecialAction.peek;
-    } else if (card.value == 9 || card.value == 10) {
-      // Look at one opponent's card
-      pendingSpecialAction = SpecialAction.peek;
-    } else if (card.value == 11 || card.value == 12) {
+    // In Cabo, only J, Q, K have abilities when drawn
+    if (card.value == 11 || card.value == 12) {
       // Swap one of your cards with an opponent's card
       pendingSpecialAction = SpecialAction.swap;
     } else if (card.value == 13) {
@@ -155,6 +151,17 @@ class CaboGame {
   void discardDrawnCard() {
     if (drawnCard == null) return;
 
+    // Check special abilities before adding to discard pile
+    if (drawnCard!.value == 7 || drawnCard!.value == 8) {
+      // Player can look at one of their own cards
+      pendingSpecialAction = SpecialAction.peekOwn;
+      statusMessage = "You discarded a ${drawnCard!.value}. You may peek at one of your cards.";
+    } else if (drawnCard!.value == 9 || drawnCard!.value == 10) {
+      // Player can look at one opponent's card
+      pendingSpecialAction = SpecialAction.peekOpponent;
+      statusMessage = "You discarded a ${drawnCard!.value}. You may peek at one opponent's card.";
+    }
+
     // Add the drawn card to the discard pile
     drawnCard!.isFaceUp = true; // Make sure it's face up
     discardPile.add(drawnCard!);
@@ -162,7 +169,8 @@ class CaboGame {
 
     drawnCard = null;
     lastAction = PlayerAction.none;
-    pendingSpecialAction = SpecialAction.none;
+
+    // Don't reset pendingSpecialAction here as we need it for the special action
   }
 
   void nextPlayer() {
