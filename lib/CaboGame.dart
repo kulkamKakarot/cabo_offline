@@ -97,8 +97,14 @@ class CaboGame {
 
   PlayingCard drawCard() {
     if (deck.isEmpty && discardPile.isNotEmpty) {
-      // Reshuffle discard pile except top card if deck is empty
+      // Reshuffle discard pile except the top card if deck is empty
       PlayingCard top = discardPile.removeLast();
+
+      // Turn the rest of the discard pile face down before shuffling
+      for (var card in discardPile) {
+        card.isFaceUp = false;
+      }
+
       deck.addAll(discardPile);
       discardPile = [top];
       deck.shuffle(Random());
